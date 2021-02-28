@@ -44,6 +44,7 @@ from pydantic import (
     NameEmail,
     NegativeFloat,
     NegativeInt,
+    NonExistentPath,
     NonNegativeFloat,
     NonNegativeInt,
     NonPositiveFloat,
@@ -1972,6 +1973,40 @@ def test_directory_path_validation_success(value, result):
 def test_directory_path_validation_fails(value, errors):
     class Model(BaseModel):
         foo: DirectoryPath
+
+    with pytest.raises(ValidationError) as exc_info:
+        Model(foo=value)
+    assert exc_info.value.errors() == errors
+
+
+@pytest.mark.parametrize('value,result', (('/test/path/nonexistentfile', Path('/test/path/nonexistentfile')),
+                                          (Path('/test/path/nonexistentfile'), Path('/test/path/nonexistentfile'))))
+def test_nonexist_path_validation_success(value, result):
+    class Model(BaseModel):
+        foo: Path
+
+    assert Model(foo=value).foo == result
+
+
+@pytest.mark.parametrize(
+    'value,errors',
+    (
+        (
+            'tests/test_types.py',
+            [
+                {
+                    'loc': ('foo',),
+                    'msg': 'file or directory at path "tests/test_types.py" already exists',
+                    'type': 'value_error.path.exists',
+                    'ctx': {'path': 'tests/test_types.py'},
+                }
+            ],
+        ),
+    ),
+)
+def test_nonexist_path_validation_fails(value, errors):
+    class Model(BaseModel):
+        foo: NonExistentPath
 
     with pytest.raises(ValidationError) as exc_info:
         Model(foo=value)

@@ -83,6 +83,7 @@ __all__ = [
     'UUID5',
     'FilePath',
     'DirectoryPath',
+    'NonExistentPath',
     'Json',
     'JsonWrapper',
     'SecretStr',
@@ -700,6 +701,24 @@ else:
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ JSON TYPE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+class NonExistentPath(Path):
+    @classmethod
+    def __modify_schema__(cls, field_schema: Dict[str, Any]) -> None:
+        field_schema.update(format='nonexistent-path')
+
+    @classmethod
+    def __get_validators__(cls) -> 'CallableGenerator':
+        yield path_validator
+        yield cls.validate
+
+    @classmethod
+    def validate(cls, value: Path) -> Path:
+        if value.exists():
+            raise errors.PathExistsError(path=value)
+
+        return value
 
 
 class JsonWrapper:

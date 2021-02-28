@@ -254,6 +254,11 @@ class PathNotExistsError(_PathValueError):
     msg_template = 'file or directory at path "{path}" does not exist'
 
 
+class PathExistsError(_PathValueError):
+    code = 'path.exists'
+    msg_template = 'file or directory at path "{path}" already exists'
+
+
 class PathNotAFileError(_PathValueError):
     code = 'path.not_a_file'
     msg_template = 'path "{path}" does not point to a file'
