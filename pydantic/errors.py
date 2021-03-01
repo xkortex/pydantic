@@ -259,6 +259,14 @@ class PathExistsError(_PathValueError):
     msg_template = 'file or directory at path "{path}" already exists'
 
 
+class PathParentNotDir(PydanticValueError):
+    code = 'path.parentnotdir'
+    msg_template = '"{path}" cannot exist because its ancestor "{ancestor}" is not a directory'
+
+    def __init__(self, *, path: Path, ancestor: Path) -> None:
+        super().__init__(path=str(path), ancestor=str(ancestor))
+
+
 class PathNotAFileError(_PathValueError):
     code = 'path.not_a_file'
     msg_template = 'path "{path}" does not point to a file'

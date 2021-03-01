@@ -40,6 +40,7 @@ from .validators import (
     number_size_validator,
     path_exists_validator,
     path_validator,
+    potential_path_validator,
     set_validator,
     str_validator,
     strict_bytes_validator,
@@ -83,7 +84,7 @@ __all__ = [
     'UUID5',
     'FilePath',
     'DirectoryPath',
-    'NonExistentPath',
+    'PotentialPath',
     'Json',
     'JsonWrapper',
     'SecretStr',
@@ -703,10 +704,10 @@ else:
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ JSON TYPE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
-class NonExistentPath(Path):
+class PotentialPath(Path):
     @classmethod
     def __modify_schema__(cls, field_schema: Dict[str, Any]) -> None:
-        field_schema.update(format='nonexistent-path')
+        field_schema.update(format='potential-path')
 
     @classmethod
     def __get_validators__(cls) -> 'CallableGenerator':
@@ -715,10 +716,7 @@ class NonExistentPath(Path):
 
     @classmethod
     def validate(cls, value: Path) -> Path:
-        if value.exists():
-            raise errors.PathExistsError(path=value)
-
-        return value
+        return potential_path_validator(value)
 
 
 class JsonWrapper:

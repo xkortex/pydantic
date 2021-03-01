@@ -95,7 +95,7 @@ __all__ = [
     'UUID5',
     'FilePath',
     'DirectoryPath',
-    'NonExistentPath',
+    'PotentialPath',
     'Json',
     'JsonWrapper',
     'SecretStr',

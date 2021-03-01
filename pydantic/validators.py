@@ -16,6 +16,7 @@ from typing import (
     Generator,
     List,
     NamedTuple,
+    Optional,
     Pattern,
     Set,
     Tuple,
@@ -414,6 +415,37 @@ def path_validator(v: Any) -> Path:
         return Path(v)
     except TypeError:
         raise errors.PathError()
+
+
+def potential_path_validator(path: Path):
+    """Determine if a path is a potentially valid path, e.g. could be created without conflict.
+    That means the path does not curretnly exist and all of its ancestors must be valid directories.
+    If exist_ok is True, then the PotentialPath is allowed to be an existing file/dir.
+    We operate on the fully-resolved abspath in order to figure out tricky cases like double-dots
+    and symbolic links, but we return the original Path lest the user want the path in relative
+    format.
+    """
+    exist_ok = False # todo: hook into config
+    abspath = Path(path).expanduser().resolve()
+    if abspath.exists():
+        if exist_ok:
+            return path
+        raise errors.PathExistsError(path=path)
+
+    ancestor = nondir_ancestor(abspath.parent)
+    if ancestor is not None:
+        raise errors.PathParentNotDir(path=path, ancestor=ancestor)
+    return path
+
+
+def nondir_ancestor(path: Path) -> Optional[Path]:
+    """Find an ancestor which isn't a dir, and return it so we can report the offending path to the error.
+    Otherwise return None"""
+    if path.is_dir():
+        return None
+    if path.exists():
+        return path
+    return nondir_ancestor(path.parent)
 
 
 def path_exists_validator(v: Any) -> Path:

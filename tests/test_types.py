@@ -44,7 +44,7 @@ from pydantic import (
     NameEmail,
     NegativeFloat,
     NegativeInt,
-    NonExistentPath,
+    PotentialPath,
     NonNegativeFloat,
     NonNegativeInt,
     NonPositiveFloat,
@@ -1979,37 +1979,67 @@ def test_directory_path_validation_fails(value, errors):
     assert exc_info.value.errors() == errors
 
 
+@pytest.mark.skipif(sys.platform.startswith('win'), reason='paths look different on windows')
 @pytest.mark.parametrize('value,result', (('/test/path/nonexistentfile', Path('/test/path/nonexistentfile')),
                                           (Path('/test/path/nonexistentfile'), Path('/test/path/nonexistentfile'))))
 def test_nonexist_path_validation_success(value, result):
     class Model(BaseModel):
-        foo: Path
+        foo: PotentialPath
 
     assert Model(foo=value).foo == result
 
 
+@pytest.mark.skipif(sys.platform.startswith('win'), reason='paths look different on windows')
 @pytest.mark.parametrize(
-    'value,errors',
+    'path, ancestor, errors',
     (
         (
-            'tests/test_types.py',
+            'some_file.txt', 'some_file.txt',
             [
                 {
                     'loc': ('foo',),
-                    'msg': 'file or directory at path "tests/test_types.py" already exists',
+                    'msg': 'file or directory at path "{path}" already exists',
                     'type': 'value_error.path.exists',
-                    'ctx': {'path': 'tests/test_types.py'},
+                    'ctx': {'path': 'some_file.txt'},
+                }
+            ],
+        ),
+        (
+            'some_file.txt/nope', 'some_file.txt',
+            [
+                {
+                    'loc': ('foo',),
+                    'msg': '"{path}" cannot exist because its ancestor "{ancestor}" is not a directory',
+                    'type': 'value_error.path.parentnotdir',
+                    'ctx': {'path': 'some_file.txt/nope', 'ancestor': 'some_file.txt'},
                 }
             ],
         ),
     ),
 )
-def test_nonexist_path_validation_fails(value, errors):
-    class Model(BaseModel):
-        foo: NonExistentPath
+def test_nonexist_path_validation_fails(path, ancestor, errors, tmp_path: Path):
+    """This test fixture is a little tricky, given the nature of ascertaining whether an ancestor conflicts.
+    Due to symlinks and ~ home dir, we essentially have no choice but to resolve the full path and traverse
+    its ancestors, looking for a valid directory or conflicting file. If we want to report what the offending
+    ancestor path is, we have to report the resolved path, since the existence of symlinks means that the desired
+    path and ancestor may not share a common base. This could be avoided by raising an error which only says
+    'path' cannot be created and ignore the ancestor, but exactly this sort of condition is where informing the
+    offending ancestor would be extremely helpful.
+    """
+    path = tmp_path.joinpath(path)
+    ancestor = tmp_path.joinpath(ancestor)
+    with open(ancestor, 'w') as fp:
+        fp.write('spam')
 
+    class Model(BaseModel):
+        foo: PotentialPath
     with pytest.raises(ValidationError) as exc_info:
-        Model(foo=value)
+        m = Model(foo=path)
+    # munge the absolute path back into the context, since we can't put that directly into the test fixture
+    errors[0]['msg'] = errors[0]['msg'].format(path=path, ancestor=ancestor)
+    errors[0]['ctx']['path'] = str(path)
+    if 'ancestor' in errors[0]['ctx']:
+        errors[0]['ctx']['ancestor'] = str(ancestor)
     assert exc_info.value.errors() == errors
 
 
