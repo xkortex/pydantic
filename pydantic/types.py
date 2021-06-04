@@ -84,6 +84,7 @@ __all__ = [
     'UUID5',
     'FilePath',
     'DirectoryPath',
+    'potentialpath',
     'PotentialPath',
     'Json',
     'JsonWrapper',
@@ -662,6 +663,7 @@ else:
 if TYPE_CHECKING:
     FilePath = Union[Path, str]
     DirectoryPath = Union[Path, str]
+    PotentialPath = Union[Path, str]
 else:
 
     class FilePath(Path):
@@ -701,22 +703,33 @@ else:
             return value
 
 
+    class PotentialPath(Path):
+        exist_ok = False
+        parent_must_exist = False
+        @classmethod
+        def __modify_schema__(cls, field_schema: Dict[str, Any]) -> None:
+            field_schema.update(format='potential-path')
+
+        @classmethod
+        def __get_validators__(cls) -> 'CallableGenerator':
+            yield path_validator
+            yield cls.validate
+
+        @classmethod
+        def validate(cls, value: Path) -> Path:
+            if cls.parent_must_exist:
+                if not value.parent.is_dir():
+                    raise errors.PathNotADirectoryError(path=value.parent)
+            return potential_path_validator(value)
+
+
+def potentialpath(*, exist_ok=False, parent_must_exist=False):
+    namespace = dict(
+        exist_ok=exist_ok, parent_must_exist=parent_must_exist
+    )
+    return type('PotentialPath', (PotentialPath,), namespace)
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ JSON TYPE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-
-class PotentialPath(Path):
-    @classmethod
-    def __modify_schema__(cls, field_schema: Dict[str, Any]) -> None:
-        field_schema.update(format='potential-path')
-
-    @classmethod
-    def __get_validators__(cls) -> 'CallableGenerator':
-        yield path_validator
-        yield cls.validate
-
-    @classmethod
-    def validate(cls, value: Path) -> Path:
-        return potential_path_validator(value)
 
 
 class JsonWrapper:

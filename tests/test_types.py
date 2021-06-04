@@ -69,6 +69,7 @@ from pydantic import (
     constr,
     create_model,
     errors,
+    potentialpath,
     validator,
 )
 from pydantic.typing import NoneType
@@ -2042,6 +2043,10 @@ def test_nonexist_path_validation_fails(path, ancestor, errors, tmp_path: Path):
         errors[0]['ctx']['ancestor'] = str(ancestor)
     assert exc_info.value.errors() == errors
 
+
+def test_parent_must_exist(tmp_path: Path):
+    class Model(BaseModel):
+        foo: potentialpath()
 
 base_message = r'.*ensure this value is {msg} \(type=value_error.number.not_{ty}; limit_value={value}\).*'
 
